@@ -19,6 +19,8 @@ package androidx.compose.ui.scene
 import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.InternalComposeUiApi
+import androidx.compose.ui.platform.PlatformContext
 import androidx.compose.ui.uikit.ComposeUIViewConfiguration
 import androidx.compose.ui.uikit.utils.CMPView
 import androidx.compose.ui.unit.DpSize
@@ -57,6 +59,12 @@ internal class ComposeHostingView(
 
     @VisibleForTesting
     fun hasInvalidations(): Boolean = container.hasInvalidations()
+
+    @VisibleForTesting
+    @OptIn(InternalComposeUiApi::class)
+    var rootForTestListener: PlatformContext.RootForTestListener?
+        get() = container.rootForTestListener
+        set(value) { container.rootForTestListener = value }
 
     @VisibleForTesting
     val lifecycleState: Lifecycle.State get() = container.currentLifecycleState
