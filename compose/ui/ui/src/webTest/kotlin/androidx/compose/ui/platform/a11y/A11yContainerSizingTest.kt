@@ -134,7 +134,9 @@ class A11yContainerSizingTest : OnCanvasTests {
 
         val a11yContainer = assertNotNull(getA11YContainer())
 
-        awaitA11YChanges()
+        if (a11yContainer.children[0]?.children[0] == null) {
+            awaitA11YChanges()
+        }
 
         val button = a11yContainer.children[0]?.children[0] as? HTMLElement
         assertNotNull(button, "expected a semantic node for the Button")
