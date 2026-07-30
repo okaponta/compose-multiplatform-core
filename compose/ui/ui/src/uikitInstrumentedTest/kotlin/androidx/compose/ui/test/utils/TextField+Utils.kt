@@ -67,10 +67,13 @@ internal fun UIKitInstrumentedTest.findFirstDescendant(predicate: (UIView) -> Bo
  * The window-space point (in Dp) of the caret for character [offset] in the text field tagged
  * [tag]. Use it to aim touch gestures at a specific character.
  *
- * Note: on an already-focused Cupertino text field a tap snaps the caret to a word boundary, so
- * tapping this point mid-word won't necessarily land exactly on [offset] (see
- * `determineCursorDesiredOffset`). Targeting an exact character is reliable on the first
- * (focus-gaining) tap of an unfocused field or long press.
+ * Caveat — a tap on an iOS field (including the focus-gaining tap) does not leave the caret
+ * mid-word: it snaps to a word boundary, so this point is an aim, not a guaranteed landing offset.
+ * On the Compose path the snap splits at the word's midpoint (first half → word start, second half
+ * → word end; see `determineCursorDesiredOffset`). The native UITextInput path follows the same
+ * idea, but its split point is private to iOS and varies with word length, font and more; treat it
+ * as the Compose path, yet only clearly-leading and clearly-trailing taps are deterministic — a tap
+ * in the start-to-middle zone may snap either way.
  */
 internal fun UIKitInstrumentedTest.characterPosition(tag: String, offset: Int): DpOffset {
     val node = findSemanticsNode(tag)
