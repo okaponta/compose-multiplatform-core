@@ -92,7 +92,7 @@ import platform.objc.objc_setAssociatedObject
 internal class ComposeContainer(
     private val configuration: ComposeContainerConfiguration,
     private val content: @Composable () -> Unit,
-    private val lifecycleDelegate: ComposeContainerLifecycleDelegate
+    private val lifecycleDelegate: ComposeContainerLifecycleDelegate,
 ) {
     // Register before any property initializer / scene setup below touches the Skiko backend, so
     // every iOS entry point (ComposeHostingView, ComposeHostingViewController) is covered.
@@ -109,6 +109,10 @@ internal class ComposeContainer(
         get() = view.window?.windowScene?.let { FrameChoreographer.choreographerForScene(it) }
 
     private var mediator: ComposeSceneMediator? = null
+    private val sceneSizing = ComposeSceneSizing(
+        view = view,
+        measureSceneSize = { constraints -> mediator?.measureSceneSize(constraints) }
+    )
     private val windowContext = PlatformWindowContext()
     private var layersHolder: ComposeLayersHolder? = null
     private var layoutDirection = getApplicationLayoutDirection()
@@ -140,7 +144,9 @@ internal class ComposeContainer(
         getTopLeftOffsetInWindow = { IntOffset.Zero }, //full screen
         endEdgePanGestureBehavior = configuration.endEdgePanGestureBehavior
     )
+
     private var layoutInvalidationHandler: LayoutInvalidationHandler? = null
+
     val hasInteropViews: Boolean get() = mediator?.hasInteropViews ?: false
 
     /*
@@ -158,6 +164,9 @@ internal class ComposeContainer(
         architectureComponentsOwner.lifecycle.currentState
 
     init {
+        view.onSizeThatFits = sceneSizing::sizeThatFits
+        view.onIntrinsicContentSize = sceneSizing::intrinsicContentSize
+
         if (configuration.enforceStrictPlistSanityCheck) {
             PlistSanityCheck.performIfNeeded()
         }
@@ -192,6 +201,7 @@ internal class ComposeContainer(
         windowContext.updateWindowContainerSize()
 
         mediator?.measureAndLayout()
+        sceneSizing.onLayout()
     }
 
     private fun onTraitCollectionDidChange() {
@@ -239,15 +249,19 @@ internal class ComposeContainer(
         systemThemeState.value = style.asComposeSystemTheme()
     }
 
+    private fun invalidateLayout() {
+        view.setNeedsLayout()
+        view.invalidateIntrinsicContentSize()
+    }
+
     fun initializeComposeScene() {
         sceneJob = Job()
         val frameChoreographer = frameChoreographer ?: error("No window scene found")
         val containerCoroutineContext = frameChoreographer.coroutineContext + motionDurationScale + sceneJob
 
-        val layoutInvalidationHandler = LayoutInvalidationHandler(containerCoroutineContext) {
-            view.setNeedsLayout()
-            view.invalidateIntrinsicContentSize()
-        }
+        val layoutInvalidationHandler = LayoutInvalidationHandler(
+            containerCoroutineContext, ::invalidateLayout
+        )
         this.layoutInvalidationHandler = layoutInvalidationHandler
 
         val metalView = MetalView(

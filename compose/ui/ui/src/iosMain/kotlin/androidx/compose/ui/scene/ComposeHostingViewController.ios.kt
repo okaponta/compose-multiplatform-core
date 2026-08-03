@@ -60,7 +60,6 @@ internal class ComposeHostingViewController(
 
     @VisibleForTesting
     fun hasInvalidations(): Boolean = container.hasInvalidations()
-
     @VisibleForTesting
     val lifecycleState: Lifecycle.State get() = container.currentLifecycleState
 
