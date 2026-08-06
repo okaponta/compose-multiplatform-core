@@ -195,6 +195,7 @@ internal class ComposeSceneMediator(
     private val architectureComponentsOwner: PlatformArchitectureComponentsOwner,
     val coroutineContext: CoroutineContext,
     private val navigationEventInput: UIKitNavigationEventInput,
+    invalidateDraw: () -> Unit,
     interfaceOrientationState: State<InterfaceOrientation>,
     composeSceneFactory: (platformContext: PlatformContext) -> ComposeScene,
 ) {
@@ -365,7 +366,7 @@ internal class ComposeSceneMediator(
     private val interopContainer = UIKitInteropContainer(
         overlayContainer = _overlayView,
         backgroundContainer = _backgroundView,
-        requestRedraw = frameChoreographer::requestFrame
+        requestRedraw = invalidateDraw
     )
 
     private val dragAndDropManager = UIKitDragAndDropManager(
