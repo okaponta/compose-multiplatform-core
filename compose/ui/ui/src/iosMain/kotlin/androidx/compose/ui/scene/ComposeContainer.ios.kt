@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.PlatformContext
 import androidx.compose.ui.platform.PlatformWindowContext
 import androidx.compose.ui.platform.registerSkikoComposeImplementation
 import androidx.compose.ui.uikit.ComposeContainerConfiguration
-import androidx.compose.ui.uikit.SizeReportingStrategy
+import androidx.compose.ui.uikit.PreferredSizeReportingStrategy
 import androidx.compose.ui.uikit.InterfaceOrientation
 import androidx.compose.ui.uikit.LocalUIViewController
 import androidx.compose.ui.uikit.PlistSanityCheck
@@ -114,7 +114,7 @@ internal class ComposeContainer(
         view = view,
         measureSceneSize = { constraints -> mediator?.measureSceneSize(constraints) },
         usesIntrinsicContentSize =
-            configuration.sizeReportingStrategy == SizeReportingStrategy.IntrinsicContentSize,
+            configuration.preferredSizeReportingStrategy == PreferredSizeReportingStrategy.IntrinsicContentSize,
     )
     private val windowContext = PlatformWindowContext()
     private var layersHolder: ComposeLayersHolder? = null
