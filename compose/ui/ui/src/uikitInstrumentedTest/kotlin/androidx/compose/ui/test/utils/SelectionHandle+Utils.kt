@@ -103,6 +103,8 @@ private const val NativeHandleKnobInset = 8.0
  * How long UIKit keeps a finished tap open for one more tap of the same sequence. Touches sent
  * within this window continue the sequence instead of starting a new gesture.
  * 500ms should be enough
+ *
+ * TODO: CMP-10641
  */
 private const val NativeTapSequenceWindowMillis = 500L
 
