@@ -94,11 +94,17 @@ private const val SelectionHandleInfoKeyName = "SelectionHandleInfo" // `Selecti
 
 /**
  * The vertical distance (in points) from a native selection edge to the center of the lollipop
- * "blob" that a touch must land on to grab the handle. Aiming beyond the text line also keeps the
- * touch routed to UIKit (NonCooperative, see `NativeTextInputScrollView.interactionModeAt`) rather
- * than to Compose. Tuned empirically against the native drag tests.
+ * "blob" that a touch must land on to grab the handle. Tuned empirically against the native drag
+ * tests.
  */
 private const val NativeHandleKnobInset = 8.0
+
+/**
+ * How long UIKit keeps a finished tap open for one more tap of the same sequence. Touches sent
+ * within this window continue the sequence instead of starting a new gesture.
+ * 500ms should be enough
+ */
+private const val NativeTapSequenceWindowMillis = 500L
 
 private val offsetRegex = Regex("""Offset\((-?[\d.]+),\s*(-?[\d.]+)\)""")
 
@@ -123,13 +129,7 @@ internal fun parseSelectionHandleInfo(raw: String): TestSelectionHandleInfo {
     )
 }
 
-/**
- * The start and end selection handles, or null unless both are present.
- *
- * Works for both text field flavors: Compose-rendered handles (read from selection-handle popup
- * semantics) and native iOS handles (derived from the focused `UITextInput` selection geometry).
- * The caller does not need to know which flavor the field under test uses.
- */
+/** The start and end selection handles if both are present; null otherwise. */
 internal fun UIKitInstrumentedTest.selectionHandles(): SelectionHandlePair? =
     composeSelectionHandles() ?: nativeSelectionHandles()
 
@@ -154,9 +154,11 @@ private fun UIKitInstrumentedTest.composeGrabPoint(node: SemanticsNode): DpOffse
 }
 
 /**
- * Selection handles drawn by UIKit for a native text field, derived from the focused
- * `UITextInput`'s selection rects. Returns null when there is no focused native input or the
- * selection is collapsed (a caret, which has no handles).
+ * Selection handles drawn by UIKit for a native text field. UIKit keeps the handle views private,
+ * so a handle is derived from the edge of the focused `UITextInput`'s selection highlight rects.
+ *
+ * TODO: the whole derivation is guesswork — find the `_UITextSelectionLollipopView`s in the view
+ *  tree and take the handle geometry from them instead of from the highlight rects.
  */
 @OptIn(ExperimentalForeignApi::class)
 private fun UIKitInstrumentedTest.nativeSelectionHandles(): SelectionHandlePair? {
@@ -165,9 +167,8 @@ private fun UIKitInstrumentedTest.nativeSelectionHandles(): SelectionHandlePair?
     val view = input as? UIView ?: return null
     val range = input.selectedTextRange() ?: return null
     val rects = input.selectionRectsForRange(range).filterIsInstance<UITextSelectionRect>()
-    // A collapsed selection (just a caret) yields only zero-width rects and has no handles.
-    val isRanged = rects.any { it.rect().useContents { size.width > 0.0 } }
-    if (!isRanged) return null
+    // Ensure this is a ranged selection and not a caret
+    if (rects.none { it.rect().useContents { size.width > 0.0 } }) return null
     val startRect = rects.firstOrNull { it.containsStart() } ?: return null
     val endRect = rects.firstOrNull { it.containsEnd() } ?: return null
 
@@ -244,10 +245,9 @@ private data class NativeHandleGeometry(
  * Compose handle, or the lollipop blob for a native one) and dragged to the caret position for
  * [toOffset] (see [characterPosition]).
  *
- * The selection edge may not land exactly on [toOffset]: both Compose and UIKit adjust a dragged
- * handle by whole words when expanding an edge that sits on a word boundary, while shrinking or
- * moving inside a word is character-level. So expanding a word selection can overshoot [toOffset]
- * to the word boundary.
+ * The selection edge may not land exactly on [toOffset]: a dragged handle expands by word and
+ * shrinks by character, so expanding a word selection can overshoot to the word boundary. UIKit
+ * behaves the same way; for the Compose rules see `SelectionAdjustment.CharacterWithWordAccelerate`.
  */
 internal fun UIKitInstrumentedTest.dragSelectionHandle(
     handle: TestHandle,
@@ -255,12 +255,23 @@ internal fun UIKitInstrumentedTest.dragSelectionHandle(
     toOffset: Int,
     duration: Duration = 0.5.seconds,
 ) {
-    val target = when (handle) {
-        TestHandle.SelectionStart -> selectionHandles()?.start
-        TestHandle.SelectionEnd -> selectionHandles()?.end
-    } ?: error("No $handle selection handle present.")
-    val from = target.grabPoint
+    val isNative = composeSelectionHandles() == null
+    if (isNative) delay(NativeTapSequenceWindowMillis)
+
+    val from = selectionHandle(handle).grabPoint
     val to = characterPosition(tag, toOffset)
     touchDown(from).dragTo(x = to.x, y = to.y, duration = duration).up()
     waitForIdle()
+
+    if (isNative) {
+        waitUntil("Selection loupe should hide after the drag") {
+            findFirstDescendant { it.isLoupeView } == null
+        }
+    }
 }
+
+private fun UIKitInstrumentedTest.selectionHandle(handle: TestHandle): TestSelectionHandle =
+    when (handle) {
+        TestHandle.SelectionStart -> selectionHandles()?.start
+        TestHandle.SelectionEnd -> selectionHandles()?.end
+    } ?: error("No $handle selection handle present.")
