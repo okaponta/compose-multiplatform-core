@@ -24,8 +24,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.DpOffset
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.cinterop.BetaInteropApi
-import platform.Foundation.NSStringFromClass
 import platform.UIKit.UIView
 import platform.UIKit.UIWindow
 
@@ -34,9 +32,6 @@ internal val loupeClassNames = listOf(
     "_UITextLoupeView",
     "LoupeView"
 )
-
-@OptIn(BetaInteropApi::class)
-private fun objcClassName(view: UIView): String? = view.`class`()?.let { NSStringFromClass(it) }
 
 internal val UIView.isLoupeView: Boolean get() {
     val name = objcClassName(this) ?: return false
