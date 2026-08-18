@@ -24,6 +24,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.annotation.VisibleForTesting
 import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.draganddrop.UIKitDragAndDropManager
 import androidx.compose.ui.geometry.Offset
@@ -191,7 +192,6 @@ internal class ComposeSceneMediator(
     private val isClearFocusOnMouseDownEnabled: Boolean,
     focusedViewsList: FocusedViewsList?,
     private val windowContext: PlatformWindowContext,
-    private val fontScaleProvider: FontScaleProvider,
     private val architectureComponentsOwner: PlatformArchitectureComponentsOwner,
     val coroutineContext: CoroutineContext,
     private val navigationEventInput: UIKitNavigationEventInput,
@@ -248,16 +248,6 @@ internal class ComposeSceneMediator(
         }
     }
 
-    private val fontScaleProviderListener = object : FontScaleProvider.Listener {
-        override fun onChanged(value: Float) {
-            composeSceneDensity = Density(composeSceneDensity.density, value)
-        }
-    }
-
-    init {
-        fontScaleProvider.addListener(fontScaleProviderListener)
-    }
-
     private val viewConfiguration: ViewConfiguration =
         object : ViewConfiguration by PlatformContext.DefaultViewConfiguration {
             override val touchSlop: Float
@@ -289,13 +279,20 @@ internal class ComposeSceneMediator(
      * composeSceneDensity without regressions (merging [screenDensity] and [composeSceneDensity]
      * into one causes rendering and interaction issues because they are semantically different).
      */
-    var composeSceneDensity: Density
-        get() = scene.density
-        set(value) {
-            if (isActive) {
-                scene.density = value
-            }
+    val composeSceneDensity: Density get() = scene.density
+
+    fun setComposeSceneFontScale(fontScale: Float) {
+        if (isActive) {
+            scene.density = Density(composeSceneDensity.density, fontScale)
         }
+    }
+
+    @VisibleForTesting
+    fun setComposeSceneDensity(density: Density) {
+        if (isActive) {
+            scene.density = density
+        }
+    }
 
     /**
      * Density of the hosting UIKit screen.
@@ -731,7 +728,6 @@ internal class ComposeSceneMediator(
         onKeyEvent = { false }
 
         frameChoreographer.removeListener(frameChoreographerListener)
-        fontScaleProvider.removeListener(fontScaleProviderListener)
         prefetchScheduler.dispose()
         activitiesHandler.dispose()
 
