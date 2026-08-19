@@ -20,7 +20,6 @@ import androidx.collection.IntIntPair
 import androidx.compose.ui.uikit.utils.CMPDrawable
 import androidx.compose.ui.uikit.utils.CMPMetalLayer
 import androidx.compose.ui.util.trace
-import androidx.compose.ui.viewinterop.UIKitInteropAction
 import androidx.compose.ui.viewinterop.UIKitInteropTransaction
 import kotlin.math.roundToInt
 import kotlinx.cinterop.BetaInteropApi
@@ -151,12 +150,7 @@ internal class SurfaceMetalRedrawer(
         check(!isDisposed) { "MetalRedrawer.dispose() was called more than once" }
         isDisposed = true
 
-        retrieveInteropTransaction = {
-            object : UIKitInteropTransaction {
-                override val isInteropActive: Boolean = false
-                override val actions = emptyList<UIKitInteropAction>()
-            }
-        }
+        retrieveInteropTransaction = { UIKitInteropTransaction.Empty }
 
         draw = { _ -> }
 
@@ -471,7 +465,7 @@ internal class SurfaceMetalRedrawer(
         private val scheduledInteropTransactions = Array<UIKitInteropTransaction?>(bufferLength) { null }
 
         fun scheduleTransaction(transaction: UIKitInteropTransaction): Long {
-            if (transaction.actions.isEmpty()) {
+            if (!transaction.hasPendingActions) {
                 return lastScheduledIndex - 1
             }
             val index = lastScheduledIndex
