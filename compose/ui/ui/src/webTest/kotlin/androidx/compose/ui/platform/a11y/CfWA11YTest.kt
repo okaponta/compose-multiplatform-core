@@ -37,6 +37,9 @@ import androidx.compose.ui.currentTimeMillis
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -69,6 +72,30 @@ import org.w3c.dom.get
  * - Note: running the k/js tests in FF takes 15% longer than in Chrome. K/Wasm is fast in both cases.
  */
 class CfWA11YTest : OnCanvasTests {
+
+    @Test
+    fun a11yLinkAnnotation() = runApplicationTest {
+        createComposeWindow {
+            Text(
+                buildAnnotatedString {
+                    append("Text before the ")
+                    withLink(LinkAnnotation.Url("https://www.example.com")) {
+                        append("link")
+                    }
+                    append(" and text after the link")
+                }
+            )
+        }
+
+        awaitA11YChanges()
+        val a11yContainer = getA11YContainer()
+        println("A11Y HTML for LinkAnnotation: ${a11yContainer?.innerHTML}")
+
+        val textNode = a11yContainer!!.children[0] as HTMLElement
+        val linkNode = textNode.children[0] as HTMLElement
+        assertEquals("button", linkNode.getAttribute("role"))
+        assertEquals("link", linkNode.innerHTML)
+    }
 
     @Test
     fun a11yButtonClick() = runApplicationTest {

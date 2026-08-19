@@ -316,6 +316,8 @@ internal class ComposeWebSemanticsListener(
         if (config.contains(SemanticsProperties.Text)) {
             val text = config[SemanticsProperties.Text]
             htmlNode.innerText = text.fastJoinToString("\n") { it.text }
+        } else {
+            sn.linkText()?.let { htmlNode.innerText = it }
         }
 
         if (config.contains(SemanticsProperties.ContentDescription)) {
@@ -364,6 +366,29 @@ internal class ComposeWebSemanticsListener(
         }
     }
 
+
+    private fun SemanticsNode.linkText(): String? {
+        if (!config.contains(SemanticsProperties.LinkTestMarker)) return null
+
+        val parentNode = parent ?: return null
+        var linkIndex = parentNode.children
+            .asSequence()
+            .filter { it.config.contains(SemanticsProperties.LinkTestMarker) }
+            .indexOfFirst { it.id == id }
+            .takeIf { it >= 0 } ?: return null
+
+        if (!parentNode.config.contains(SemanticsProperties.Text)) return null
+        val texts = parentNode.config[SemanticsProperties.Text]
+        for (text in texts) {
+            val annotations = text.getLinkAnnotations(0, text.length)
+            if (linkIndex < annotations.size) {
+                val annotation = annotations[linkIndex]
+                return text.substring(annotation.start, annotation.end)
+            }
+            linkIndex -= annotations.size
+        }
+        return null
+    }
 
     internal fun stop() {
         if (!hasStarted || hasStopped) return
